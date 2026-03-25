@@ -33,57 +33,74 @@ claude --plugin-dir /path/to/claude-telepty
 
 ## Usage
 
-Once installed, Claude automatically has access to the PTY tools. You can ask Claude directly:
+Once installed, Claude has access to real interactive terminals. Just ask it to do things that would normally require you to be at the keyboard:
 
-> "Open a python REPL and test if numpy is installed"
-> "Run htop and tell me what's using the most memory"
-> "Start a psql session and run EXPLAIN on this query"
+> "Run `create-next-app` and set it up with TypeScript and Tailwind"
+> "Open a psql shell and check the schema for the users table"
+> "Debug this interactively in the Python REPL"
 
-Or use the `/pty` skill for the full reference:
+### The Problem
 
-```
-/pty
-```
-
-### Example: Python REPL
-
-Claude spawns a real Python session, sends commands, and reads the terminal output:
+Without this plugin, Claude can only run non-interactive commands via Bash. Anything that prompts for input fails:
 
 ```
-You: Can you check what python version is installed and test a quick calculation?
+You: Set up a new Next.js project
 
-Claude: [spawns python3 PTY session]
-        [sends: import sys; print(sys.version)]
-        → 3.13.12 (main, Feb 5 2026)
-        [sends: 2 ** 128]
-        → 340282366920938463463374607431768211456
-        [closes session]
-        Python 3.13.12 is installed. Arithmetic works fine.
+Claude: [runs: npx create-next-app]
+        ❌ Hangs forever — the installer asks "What is your project named?"
+           but Claude can't see the prompt or type a response
 ```
 
-### Example: Interactive Installer
-
 ```
-You: Install that package, it has an interactive setup wizard
+You: Check the database
 
-Claude: [spawns PTY session]
-        [runs: npx create-next-app]
-        [reads: "What is your project named?"]
-        [sends: my-app\n]
-        [reads: "Would you like to use TypeScript?"]
-        [sends: y\n]
-        ... continues through all prompts
+Claude: [runs: psql -U postgres]
+        ❌ Hangs — psql is waiting for interactive commands at the postgres=# prompt
 ```
 
-### Example: TUI Programs
+```
+You: Run the Python debugger on this script
+
+Claude: [runs: python3 -m pdb script.py]
+        ❌ Hangs — pdb needs real TTY input for step/next/continue
+```
+
+### With Telepty
+
+The same requests work because Claude gets a real terminal it can type into and read from:
 
 ```
-You: Check what's running on port 3000
+You: Set up a new Next.js project with TypeScript
 
-Claude: [spawns PTY with: lsof -i :3000]
-        — or for a more interactive approach —
-        [spawns htop PTY, reads process list, closes]
+Claude: [spawns PTY: npx create-next-app]
+        [reads: "What is your project named?" ] → sends: my-app
+        [reads: "Would you like to use TypeScript?"] → sends: Yes
+        [reads: "Would you like to use Tailwind CSS?"] → sends: Yes
+        [reads: "Would you like to use App Router?"] → sends: Yes
+        ✅ Project created at ./my-app
 ```
+
+```
+You: Check what tables are in the database
+
+Claude: [spawns PTY: psql -U postgres mydb]
+        [sends: \dt]
+        [reads the table listing]
+        [sends: \d users]
+        [reads the schema]
+        [sends: \q]
+        ✅ Found 12 tables. The users table has columns: id, email, name, created_at...
+```
+
+### Other Use Cases
+
+- **Package managers** with interactive config (`pnpm init`, `npm init`, `cargo init`)
+- **Docker** interactive containers (`docker exec -it container bash`)
+- **REPLs** for any language (python, node, irb, ghci, lua)
+- **TUI tools** (htop, btop, lazygit, tig)
+- **Debuggers** (pdb, gdb, lldb)
+- **SSH sessions** into remote machines
+- **Config wizards** that use arrow keys, checkboxes, or menus
 
 ## MCP Tools
 
