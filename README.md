@@ -119,23 +119,6 @@ The `wait_ms` parameter (default 200ms) controls how long to wait after the last
 
 **`pty_close`** — Kills the process and returns final screen state + exit code.
 
-## Control Sequences
-
-Send special keys as escape sequences in the `input` field:
-
-| Key | Sequence | Use Case |
-|-----|----------|----------|
-| Enter | `\n` or `\r` | Submit commands |
-| Ctrl+C | `\x03` | Interrupt/cancel |
-| Ctrl+D | `\x04` | EOF / exit REPL |
-| Ctrl+Z | `\x1a` | Suspend process |
-| Tab | `\t` | Autocomplete |
-| Escape | `\x1b` | Exit modes (vim, less) |
-| Arrow Up | `\x1b[A` | History / navigate |
-| Arrow Down | `\x1b[B` | History / navigate |
-| Arrow Right | `\x1b[C` | Cursor movement |
-| Arrow Left | `\x1b[D` | Cursor movement |
-
 ## When to Use PTY vs Bash
 
 | Scenario | Use |
