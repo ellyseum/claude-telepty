@@ -13,22 +13,6 @@ Claude Code's Bash tool runs commands and returns output, but it can't handle in
 
 This plugin fixes that. It spawns real pseudo-terminals via `node-pty`, renders them with `@xterm/headless`, and exposes them as MCP tools.
 
-## What's Included
-
-| Skill | Description |
-|-------|-------------|
-| `/pty` | Manage interactive PTY terminal sessions |
-
-### MCP Tools
-
-| Tool | Description |
-|------|-------------|
-| `pty_spawn` | Start a new PTY session (shell, command, custom env) |
-| `pty_send` | Send input to a session (keystrokes, commands) |
-| `pty_read` | Read the current screen buffer |
-| `pty_resize` | Resize the terminal |
-| `pty_close` | Close a session |
-
 ## Quick Start
 
 ```bash
@@ -47,31 +31,129 @@ cd claude-telepty && pnpm install && pnpm build
 claude --plugin-dir /path/to/claude-telepty
 ```
 
+## Usage
+
+Once installed, Claude automatically has access to the PTY tools. You can ask Claude directly:
+
+> "Open a python REPL and test if numpy is installed"
+> "Run htop and tell me what's using the most memory"
+> "Start a psql session and run EXPLAIN on this query"
+
+Or use the `/pty` skill for the full reference:
+
+```
+/pty
+```
+
+### Example: Python REPL
+
+Claude spawns a real Python session, sends commands, and reads the terminal output:
+
+```
+You: Can you check what python version is installed and test a quick calculation?
+
+Claude: [spawns python3 PTY session]
+        [sends: import sys; print(sys.version)]
+        → 3.13.12 (main, Feb 5 2026)
+        [sends: 2 ** 128]
+        → 340282366920938463463374607431768211456
+        [closes session]
+        Python 3.13.12 is installed. Arithmetic works fine.
+```
+
+### Example: Interactive Installer
+
+```
+You: Install that package, it has an interactive setup wizard
+
+Claude: [spawns PTY session]
+        [runs: npx create-next-app]
+        [reads: "What is your project named?"]
+        [sends: my-app\n]
+        [reads: "Would you like to use TypeScript?"]
+        [sends: y\n]
+        ... continues through all prompts
+```
+
+### Example: TUI Programs
+
+```
+You: Check what's running on port 3000
+
+Claude: [spawns PTY with: lsof -i :3000]
+        — or for a more interactive approach —
+        [spawns htop PTY, reads process list, closes]
+```
+
+## MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| `pty_spawn` | Start a new PTY session (shell, command, custom env) |
+| `pty_send` | Send input to a session (keystrokes, commands) |
+| `pty_read` | Read the current screen buffer |
+| `pty_resize` | Resize the terminal |
+| `pty_close` | Kill a session and clean up |
+
+### Tool Details
+
+**`pty_spawn`** — Creates a session and returns its ID + initial screen state.
+
+```json
+{ "command": "python3", "cols": 80, "rows": 24, "cwd": "/home/user/project" }
+```
+
+**`pty_send`** — Sends keystrokes and waits for output to settle before returning.
+
+```json
+{ "session_id": "abc-123", "input": "print('hello')\n", "wait_ms": 200 }
+```
+
+The `wait_ms` parameter (default 200ms) controls how long to wait after the last output before returning. For slow commands, `max_wait_ms` (default 10s) caps the total wait.
+
+**`pty_read`** — Returns the current screen buffer without sending any input. Useful for checking if a long-running command has finished.
+
+```json
+{ "session_id": "abc-123", "scrollback": 100 }
+```
+
+**`pty_close`** — Kills the process and returns final screen state + exit code.
+
 ## Control Sequences
 
 Send special keys as escape sequences in the `input` field:
 
-| Key | Sequence |
-|-----|----------|
-| Enter | `\n` or `\r` |
-| Ctrl+C | `\x03` |
-| Ctrl+D | `\x04` |
-| Ctrl+Z | `\x1a` |
-| Tab | `\t` |
-| Escape | `\x1b` |
-| Arrow Up | `\x1b[A` |
-| Arrow Down | `\x1b[B` |
-| Arrow Right | `\x1b[C` |
-| Arrow Left | `\x1b[D` |
+| Key | Sequence | Use Case |
+|-----|----------|----------|
+| Enter | `\n` or `\r` | Submit commands |
+| Ctrl+C | `\x03` | Interrupt/cancel |
+| Ctrl+D | `\x04` | EOF / exit REPL |
+| Ctrl+Z | `\x1a` | Suspend process |
+| Tab | `\t` | Autocomplete |
+| Escape | `\x1b` | Exit modes (vim, less) |
+| Arrow Up | `\x1b[A` | History / navigate |
+| Arrow Down | `\x1b[B` | History / navigate |
+| Arrow Right | `\x1b[C` | Cursor movement |
+| Arrow Left | `\x1b[D` | Cursor movement |
+
+## When to Use PTY vs Bash
+
+| Scenario | Use |
+|----------|-----|
+| `ls`, `git status`, `npm test` | **Bash** — simple command, predictable output |
+| Python/Node REPL | **PTY** — interactive, needs real TTY |
+| `vim`, `htop`, `less` | **PTY** — TUI, requires terminal |
+| Installer with prompts | **PTY** — interactive y/n questions |
+| `docker exec -it` | **PTY** — interactive container shell |
+| Long build with progress bars | **PTY** — ANSI progress rendering |
 
 ## Project Structure
 
 ```
 claude-telepty/
-├── .claude-plugin/           # Plugin metadata
-├── .mcp.json                 # MCP server registration
+├── .claude-plugin/           # Plugin metadata + MCP server registration
 ├── skills/
-│   └── pty/                  # /pty skill
+│   └── pty/                  # /pty skill reference
 ├── src/
 │   ├── mcp-server.ts         # MCP stdio server (in-process PTY)
 │   ├── session-manager.ts    # PTY session lifecycle + xterm rendering
