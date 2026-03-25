@@ -1,0 +1,17 @@
+{
+  "name": "claude-telepty",
+  "version": "0.1.0",
+  "description": "Interactive PTY terminal sessions for Claude Code — spawn, interact with, and manage terminal processes with real TTY support",
+  "author": {
+    "name": "Ellyseum",
+    "email": "jocelyn@ellyseum.dev"
+  },
+  "repository": "https://github.com/ellyseum/claude-telepty",
+  "keywords": ["pty", "terminal", "interactive", "tty", "node-pty", "mcp"],
+  "mcpServers": {
+    "pty": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/dist/mcp-server.js"]
+    }
+  }
+}
